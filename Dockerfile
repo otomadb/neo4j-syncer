@@ -14,6 +14,6 @@ FROM gcr.io/distroless/static-debian11 AS runner
 
 WORKDIR /app
 
-COPY --from=builder /app/neo4j-syncer /neo4j-syncer
+COPY --from=builder /app /
 
 CMD ["/neo4j-syncer"]
