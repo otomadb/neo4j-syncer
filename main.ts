@@ -48,6 +48,11 @@ try {
           "MERGE (t:Tag { uid: $tagId }) MERGE (v:Video { uid: $videoId }) MERGE (t)-[r:TAGGED_TO]->(v) RETURN r",
           { videoId, tagId }
         );
+      else
+        await tx.run(
+          "MATCH (t:Tag { uid: $tagId }), (v:Video { uid: $videoId }) MATCH (t)-[r:TAGGED_TO]->(v) DELETE r",
+          { videoId, tagId }
+        );
     }
   }
 
@@ -57,10 +62,10 @@ try {
       [string, string, string, boolean]
     >('SELECT "id","parentId","childId","isExplicit" FROM "TagParent"');
     console.log("Tag parent relations", rows.length);
-    for (const [_id, parentId, childId, _explicit] of rows) {
+    for (const [_id, parentId, childId, explicit] of rows) {
       await tx.run(
-        "MERGE (p:Tag { uid: $parentId }) MERGE (c:Tag { uid: $childId }) MERGE (p)-[r:PARENT_OF]->(c) RETURN r",
-        { parentId, childId }
+        "MERGE (p:Tag { uid: $parentId }) MERGE (c:Tag { uid: $childId }) MERGE (p)-[r:PARENT_OF {explicit: $explicit}]->(c) RETURN r",
+        { parentId, childId, explicit }
       );
     }
   }
@@ -71,11 +76,17 @@ try {
       [string, string, string, boolean]
     >('SELECT "id","mylistId","videoId","isRemoved" FROM "MylistRegistration"');
     console.log("Mylist registrations", rows.length);
-    for (const [_id, mylistId, videoId, _isRemoved] of rows) {
-      await tx.run(
-        "MERGE (m:Mylist { uid: $mylistId }) MERGE (v:Video { uid: $videoId }) MERGE (m)-[r:REGISTERED_TO]->(v) RETURN r",
-        { mylistId, videoId }
-      );
+    for (const [_id, mylistId, videoId, isRemoved] of rows) {
+      if (!isRemoved)
+        await tx.run(
+          "MERGE (m:Mylist { uid: $mylistId }) MERGE (v:Video { uid: $videoId }) MERGE (m)-[r:REGISTERED_TO]->(v) RETURN r",
+          { mylistId, videoId }
+        );
+      else
+        await tx.run(
+          "MATCH (m:Mylist { uid: $mylistId }), (v:Video { uid: $videoId }) MATCH (m)-[r:REGISTERED_TO]->(v) DELETE r",
+          { mylistId, videoId }
+        );
     }
   }
 
