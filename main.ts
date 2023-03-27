@@ -31,84 +31,63 @@ const neo4jDriver = neo4j.driver(
   neo4j.auth.basic(neo4jUsername, neo4jPassword)
 );
 
-async function addVideoTagging(tagId: string, videoId: string) {
-  const session = neo4jDriver.session({ defaultAccessMode: "WRITE" });
-  try {
-    await session.run(
-      "MERGE (t:Tag { uid: $tagId }) MERGE (v:Video { uid: $videoId }) MERGE (t)-[r:TAGGED_TO]->(v) RETURN r",
-      { videoId, tagId }
-    );
-  } finally {
-    session.close();
+const session = neo4jDriver.session();
+
+try {
+  const tx = session.beginTransaction();
+
+  // 動画のタグ付け
+  {
+    const { rows } = await pgClient.queryArray<
+      [string, string, string, boolean]
+    >('SELECT "id","tagId","videoId","isRemoved" FROM "VideoTag"');
+    console.log("Video taggings", rows.length);
+    for (const [_id, tagId, videoId, isRemoved] of rows) {
+      if (!isRemoved)
+        await tx.run(
+          "MERGE (t:Tag { uid: $tagId }) MERGE (v:Video { uid: $videoId }) MERGE (t)-[r:TAGGED_TO]->(v) RETURN r",
+          { videoId, tagId }
+        );
+    }
   }
-}
 
-async function addTagParent(parentId: string, childId: string) {
-  const session = neo4jDriver.session({ defaultAccessMode: "WRITE" });
-  try {
-    await session.run(
-      "MERGE (p:Tag { uid: $parentId }) MERGE (c:Tag { uid: $childId }) MERGE (p)-[r:PARENT_OF]->(c) RETURN r",
-      { parentId, childId }
-    );
-  } finally {
-    session.close();
+  // タグの親子関係
+  {
+    const { rows } = await pgClient.queryArray<
+      [string, string, string, boolean]
+    >('SELECT "id","parentId","childId","isExplicit" FROM "TagParent"');
+    console.log("Tag parent relations", rows.length);
+    for (const [_id, parentId, childId, _explicit] of rows) {
+      await tx.run(
+        "MERGE (p:Tag { uid: $parentId }) MERGE (c:Tag { uid: $childId }) MERGE (p)-[r:PARENT_OF]->(c) RETURN r",
+        { parentId, childId }
+      );
+    }
   }
-}
 
-async function addMylistRegistration(mylistId: string, videoId: string) {
-  const session = neo4jDriver.session({ defaultAccessMode: "WRITE" });
-  try {
-    await session.run(
-      "MERGE (m:Mylist { uid: $mylistId }) MERGE (v:Video { uid: $videoId }) MERGE (m)-[r:REGISTERED_TO]->(v) RETURN r",
-      { mylistId, videoId }
-    );
-  } finally {
-    session.close();
+  // マイリストの動画登録
+  {
+    const { rows } = await pgClient.queryArray<
+      [string, string, string, boolean]
+    >('SELECT "id","mylistId","videoId","isRemoved" FROM "MylistRegistration"');
+    console.log("Mylist registrations", rows.length);
+    for (const [_id, mylistId, videoId, _isRemoved] of rows) {
+      await tx.run(
+        "MERGE (m:Mylist { uid: $mylistId }) MERGE (v:Video { uid: $videoId }) MERGE (m)-[r:REGISTERED_TO]->(v) RETURN r",
+        { mylistId, videoId }
+      );
+    }
   }
-}
 
-async function syncVideoTaggings() {
-  const { rows } = await pgClient.queryArray<[string, string, string, boolean]>(
-    'SELECT "id","tagId","videoId","isRemoved" FROM "VideoTag"'
-  );
-  await Promise.all(
-    rows.map(([_id, tagId, videoId, isRemoved]) =>
-      !isRemoved ? addVideoTagging(tagId, videoId) : Promise.resolve()
-    )
-  );
-  console.log("Video taggings synced.");
+  await tx.commit();
+} catch (e) {
+  console.error(e);
+} finally {
+  await session.close();
 }
-
-async function syncTagParents() {
-  const { rows } = await pgClient.queryArray<[string, string, string, boolean]>(
-    'SELECT "id","parentId","childId","isExplicit" FROM "TagParent"'
-  );
-  await Promise.all(
-    rows.map(([_id, parentId, childId, _explicit]) =>
-      addTagParent(parentId, childId)
-    )
-  );
-  console.log("Tag parents synced.");
-}
-
-async function syncMylistRegistrations() {
-  const { rows } = await pgClient.queryArray<[string, string, string, boolean]>(
-    'SELECT "id","mylistId","videoId","isRemoved" FROM "MylistRegistration"'
-  );
-  await Promise.all(
-    rows.map(([_id, parentId, childId, isRemoved]) =>
-      !isRemoved ? addMylistRegistration(parentId, childId) : Promise.resolve()
-    )
-  );
-  console.log("Mylist registrations synced.");
-}
-
-await syncVideoTaggings();
-await syncTagParents();
-await syncMylistRegistrations();
 
 await pgClient.end();
 await neo4jDriver.close();
-
 console.log("Sync completed.");
+
 Deno.exit();
