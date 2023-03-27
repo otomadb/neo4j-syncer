@@ -1,0 +1,7 @@
+{
+  "recommendations": [
+    "EditorConfig.EditorConfig",
+    "jnoortheen.nix-ide",
+    "denoland.vscode-deno"
+  ]
+}

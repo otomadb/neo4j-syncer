@@ -1,0 +1,6 @@
+{
+  "tasks": {
+    "dev": "deno run --allow-net --allow-env ./main.ts",
+    "compile": "deno compile --allow-net --allow-env -o neo4j-syncer ./main.ts"
+  }
+}

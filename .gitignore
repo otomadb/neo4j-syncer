@@ -1,0 +1,14 @@
+# Nix
+.direnv
+
+# VSCode
+.vscode/*
+!.vscode/extensions.json
+
+# Env
+.env
+!.env.example
+
+# Output
+neo4j-syncer
+# main.js
