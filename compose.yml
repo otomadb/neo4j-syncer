@@ -1,0 +1,13 @@
+services:
+  syncer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    extra_hosts:
+      - localhost:192.168.1.168
+
+networks:
+  default:
+    driver: bridge

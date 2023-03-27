@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "neo4j-syncer"
+version = "0.1.0"
+description = ""
+authors = ["SnO2WMaN <me@sno2wman.net>"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+psycopg = {extras = ["binary"], version = "^3.1.8"}
+neo4j = "^5.6.0"
+
+
+[tool.poetry.group.dev.dependencies]
+isort = "^5.12.0"
+black = "^23.1.0"
+mypy = "^1.1.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

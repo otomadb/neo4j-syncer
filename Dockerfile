@@ -1,19 +1,22 @@
 # syntax=docker/dockerfile:1
 
 # Builder
-FROM denoland/deno:1.31.1 AS builder
+FROM python:3.10-slim AS builder
+
+ENV POETRY_HOME="/opt/poetry"
+ENV PATH="$POETRY_HOME/bin:$PATH"
 
 WORKDIR /app
 
-COPY deno.jsonc deno.lock main.ts ./
-RUN deno task compile
+RUN apt-get update && \
+  apt-get install --no-install-recommends -y curl && \
+  apt-get clean
 
-# Runner
-# hadolint ignore=DL3006
-FROM gcr.io/distroless/static-debian11 AS runner
+RUN curl -sSL https://install.python-poetry.org/ | python - --version 1.4.0
 
-WORKDIR /app
+COPY poetry.lock pyproject.toml ./
+RUN poetry install --no-dev
 
-COPY --from=builder /app /
+COPY ./main.py ./
 
-CMD ["/neo4j-syncer"]
+CMD ["poetry", "run", "python", "main.py"]
